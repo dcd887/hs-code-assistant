@@ -1,6 +1,6 @@
 """
-海关商品归类 AI 助手 - FastAPI 后端
-提供商品归类 API 接口，调用 LangChain Agent + MCP 工具
+税则通 - FastAPI 后端
+提供商品编码与税率查询 API 接口
 """
 import os
 import json
@@ -18,13 +18,13 @@ from langchain_openai import ChatOpenAI
 load_dotenv()
 
 # 配置
-app = FastAPI(title="海关商品归类 AI 助手", version="1.0.0")
+app = FastAPI(title="税则通API", version="1.0.0")
 
 # 阿里云百炼 API 配置（OpenAI 兼容）
 LLM_CONFIG = {
     "base_url": os.getenv("LLM_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
     "api_key": os.getenv("LLM_API_KEY", ""),
-    "model": os.getenv("LLM_MODEL", "qwen3.8-flash"),
+    "model": os.getenv("LLM_MODEL", "qwen-plus"),
 }
 
 # CORS（微信小程序域名白名单，生产环境收窄）
@@ -221,7 +221,7 @@ class ClassifyResponse(BaseModel):
 
 @app.get("/")
 def root():
-    return {"status": "ok", "service": "海关商品归类AI助手", "version": "1.0.0"}
+    return {"status": "ok", "service": "税则通", "version": "1.0.0"}
 
 
 @app.post("/api/classify")
@@ -254,7 +254,7 @@ def classify(request: ClassifyRequest):
         return {
             "status": "fallback",
             "recommendations": results[:3],
-            "disclaimer": "AI服务暂不可用，当前为关键词匹配结果，仅供参考"
+            "disclaimer": "查询服务暂不可用，当前为关键词匹配结果，仅供参考"
         }
 
 

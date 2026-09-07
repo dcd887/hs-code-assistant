@@ -16,7 +16,7 @@
 
 | 变量名 | 值 |
 |---|---|
-| LLM_API_KEY | sk-6e73bd57b8b749f38bb4fab4f2c632c6 |
+| LLM_API_KEY | your-api-key-here |
 | LLM_BASE_URL | https://dashscope.aliyuncs.com/compatible-mode/v1 |
 | LLM_MODEL | qwen-plus |
 
@@ -59,7 +59,7 @@ wx.cloud.callContainer({
 ### 6. 验证
 访问 `https://你的域名/` 应返回：
 ```json
-{"status":"ok","service":"海关商品归类AI助手","version":"1.0.0"}
+{"status":"ok","service":"税则通","version":"1.0.0"}
 ```
 
 ## 免费额度

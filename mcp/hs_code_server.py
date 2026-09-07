@@ -1,6 +1,6 @@
 """
-海关商品归类 AI 助手 - MCP 工具服务器
-提供 HS Code 查询工具，供 LangChain Agent 调用
+税则通 - MCP 工具服务器
+提供 HS Code 查询工具
 """
 import json
 import os
@@ -169,6 +169,6 @@ def calculate_tax(hs_code: str, customs_value: float) -> str:
 
 
 if __name__ == "__main__":
-    print("HS Code AI Assistant MCP Server 启动中...")
+    print("税则通 MCP Server 启动中...")
     print(f"已加载 {len(HS_CODES)} 条 HS Code 数据")
     mcp.run()
