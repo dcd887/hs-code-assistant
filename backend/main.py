@@ -45,48 +45,87 @@ with open(HS_DATA_FILE, "r", encoding="utf-8") as f:
     HS_CODES = json.load(f)
 
 
+def _clean(text: str) -> str:
+    """清理字段中的解析噪音（如尾部的 ' 0'、' 8'、' 6.5' 等税率残留）"""
+    if not text:
+        return ""
+    import re
+    return re.sub(r'[\s\d.]+$', '', text).strip()
+
+
+def fuzzy_search(keyword: str, limit: int = 10) -> list:
+    """中文模糊搜索：精确子串匹配优先，连续词匹配次之，单字匹配兜底，按相关度排序。
+    AI 失效时作为降级搜索，保证小程序基本可用。"""
+    kw = keyword.lower().strip()
+    if not kw:
+        return []
+
+    # 提取连续2字词（用于加权匹配）
+    bigrams = [kw[i:i + 2] for i in range(len(kw) - 1) if " " not in kw[i:i + 2]]
+
+    scored = []
+    for item in HS_CODES:
+        name = _clean(item.get("name", ""))
+        desc = _clean(item.get("description", ""))
+        cat = item.get("category", "")
+        text = f"{name} {desc} {cat}".lower()
+        if not text.strip():
+            continue
+
+        # 1. 精确子串匹配（最高分）
+        if kw in text:
+            score = 100.0 - text.index(kw) * 0.05
+        else:
+            # 2. 连续2字词匹配（主要得分来源）
+            matched_bigrams = [b for b in bigrams if b in text]
+            if matched_bigrams:
+                score = 30.0 + len(matched_bigrams) * 15.0
+                # 连续3字词额外加分
+                for i in range(len(kw) - 2):
+                    trigram = kw[i:i + 3]
+                    if " " not in trigram and trigram in text:
+                        score += 10.0
+            else:
+                # 3. 单字匹配（兜底，要求匹配率高才返回）
+                chars = [c for c in kw if not c.isspace()]
+                if not chars:
+                    continue
+                unique_chars = set(chars)
+                matched = sum(1 for c in unique_chars if c in text)
+                ratio = matched / len(unique_chars)
+                if ratio < 0.6:  # 匹配率低于60%直接跳过，避免"口红"匹配到鱼
+                    continue
+                score = ratio * 20.0
+
+        scored.append((score, item))
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [item for _, item in scored[:limit]]
+
+
 # ========== 工具定义（LangChain Tool 格式） ==========
 
 @tool
 def search_hs_code(keyword: str, category: str = "") -> str:
     """根据商品描述关键词搜索HS Code（海关编码）。输入商品描述，返回匹配的HS Code、税率、监管条件。"""
-    results = []
-    keyword_lower = keyword.lower()
-    for item in HS_CODES:
-        text = f"{item['name']} {item['description']} {item['category']}".lower()
-        if keyword_lower in text:
-            if category and category not in item["category"]:
-                continue
-            results.append({
-                "hs_code": item["hs_code"],
-                "name": item["name"],
-                "category": item["category"],
-                "description": item["description"],
-                "import_tariff": item["import_tariff"],
-                "vat_rate": item["vat_rate"],
-                "consumption_tax": item["consumption_tax"],
-                "supervision": item["supervision"]
-            })
-    if not results:
-        words = keyword_lower.split()
-        for item in HS_CODES:
-            text = f"{item['name']} {item['description']} {item['category']}".lower()
-            if any(w in text for w in words):
-                if category and category not in item["category"]:
-                    continue
-                results.append({
-                    "hs_code": item["hs_code"],
-                    "name": item["name"],
-                    "category": item["category"],
-                    "description": item["description"],
-                    "import_tariff": item["import_tariff"],
-                    "vat_rate": item["vat_rate"],
-                    "consumption_tax": item["consumption_tax"],
-                    "supervision": item["supervision"]
-                })
-    if not results:
+    items = fuzzy_search(keyword, limit=10)
+    if category:
+        items = [i for i in items if category in i.get("category", "")]
+    if not items:
         return json.dumps({"status": "not_found", "message": f"未找到与'{keyword}'相关的HS Code"}, ensure_ascii=False)
-    return json.dumps({"status": "success", "count": len(results), "results": results[:5]}, ensure_ascii=False)
+    results = []
+    for item in items[:5]:
+        results.append({
+            "hs_code": item["hs_code"],
+            "name": _clean(item.get("name", "")),
+            "category": item.get("category", ""),
+            "description": _clean(item.get("description", "")),
+            "import_tariff": item["import_tariff"],
+            "vat_rate": item["vat_rate"],
+            "consumption_tax": item["consumption_tax"],
+            "supervision": item.get("supervision", "")
+        })
+    return json.dumps({"status": "success", "count": len(results), "results": results}, ensure_ascii=False)
 
 
 @tool
@@ -234,27 +273,28 @@ def classify(request: ClassifyRequest):
         result = run_classifier(request.description)
         return result
     except Exception as e:
-        # LLM 调用失败时的降级方案：直接关键词搜索
+        # LLM 调用失败时的降级方案：中文模糊搜索（保证小程序基本可用）
+        items = fuzzy_search(request.description, limit=5)
         results = []
-        keyword = request.description.lower()
-        for item in HS_CODES:
-            text = f"{item['name']} {item['description']}".lower()
-            if any(w in text for w in keyword.split()):
-                results.append({
-                    "hs_code": item["hs_code"],
-                    "name": item["name"],
-                    "confidence": 0.6,
-                    "reason": f"关键词匹配：{item['description']}",
-                    "tax": {
-                        "import_tariff": f"{item['import_tariff']}%",
-                        "vat_rate": f"{item['vat_rate']}%",
-                        "comprehensive_rate": f"{((1+item['import_tariff']/100)*(1+item['vat_rate']/100)-1)*100:.1f}%"
-                    }
-                })
+        for idx, item in enumerate(items[:3]):
+            conf = round(0.85 - idx * 0.1, 2)  # 第一名0.85，第二名0.75，第三名0.65
+            name = _clean(item.get("name", ""))
+            desc = _clean(item.get("description", ""))
+            results.append({
+                "hs_code": item["hs_code"],
+                "name": name,
+                "confidence": conf,
+                "reason": f"税则数据库匹配：{desc or name}",
+                "tax": {
+                    "import_tariff": f"{item['import_tariff']}%",
+                    "vat_rate": f"{item['vat_rate']}%",
+                    "comprehensive_rate": f"{((1+item['import_tariff']/100)*(1+item['vat_rate']/100)-1)*100:.1f}%"
+                }
+            })
         return {
             "status": "fallback",
-            "recommendations": results[:3],
-            "disclaimer": "查询服务暂不可用，当前为关键词匹配结果，仅供参考"
+            "recommendations": results,
+            "disclaimer": "智能归类暂不可用，当前为税则数据库关键词匹配结果，仅供参考"
         }
 
 
