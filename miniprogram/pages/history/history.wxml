@@ -1,0 +1,24 @@
+<!--pages/history/history.wxml-->
+<view class="container">
+  <view class="header">
+    <view class="title">搜索历史</view>
+    <view class="clear-btn" bindtap="onClear" wx:if="{{history.length > 0}}">清空</view>
+  </view>
+
+  <view class="history-list" wx:if="{{history.length > 0}}">
+    <view class="history-item" wx:for="{{history}}" wx:key="time" bindtap="onItemTap" data-item="{{item}}">
+      <view class="history-desc">{{item.description}}</view>
+      <view class="history-result" wx:if="{{item.topResult}}">
+        <text class="hs-code">{{item.topResult.hs_code}}</text>
+        <text class="hs-name">{{item.topResult.name}}</text>
+      </view>
+      <view class="history-time">{{item.time}}</view>
+    </view>
+  </view>
+
+  <view class="empty" wx:if="{{history.length === 0}}">
+    <view class="empty-icon">📋</view>
+    <view class="empty-text">暂无搜索记录</view>
+    <button class="btn-primary" bindtap="goSearch">去搜索</button>
+  </view>
+</view>

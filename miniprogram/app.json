@@ -1,0 +1,21 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/result/result",
+    "pages/history/history"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#1A1B1C",
+    "navigationBarTitleText": "税则通",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#F4F3EE"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于定位附近报关行"
+    }
+  }
+}

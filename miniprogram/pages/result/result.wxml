@@ -1,0 +1,47 @@
+<!--pages/result/result.wxml-->
+<view class="container">
+  <!-- 查询描述 -->
+  <view class="query-card">
+    <view class="query-label">查询商品</view>
+    <view class="query-text">{{description}}</view>
+  </view>
+
+  <!-- 加载中 -->
+  <view class="loading" wx:if="{{loading}}">
+    <view class="loading-text">正在查询税则数据库...</view>
+    <view class="loading-tip">匹配商品编码与税率信息</view>
+  </view>
+
+  <!-- 结果列表 -->
+  <block wx:if="{{!loading && recommendations.length > 0}}">
+    <view class="result-title">推荐结果（按匹配度排序）</view>
+    <view class="result-card" wx:for="{{recommendations}}" wx:key="hs_code">
+      <view class="result-header">
+        <view class="hs-code" bindtap="copyCode" data-code="{{item.hs_code}}">{{item.hs_code}} 📋</view>
+        <view class="confidence {{item.confidence >= 0.8 ? 'high' : item.confidence >= 0.6 ? 'mid' : 'low'}}">
+          置信度 {{item.confidence}}
+        </view>
+      </view>
+      <view class="result-name">{{item.name}}</view>
+      <view class="result-reason">{{item.reason}}</view>
+      <view class="result-tags">
+        <view class="tag tag-tariff">关税 {{item.tax.import_tariff}}</view>
+        <view class="tag tag-vat">增值税 {{item.tax.vat_rate}}</view>
+        <view class="tag tag-danger" wx:if="{{item.tax.comprehensive_rate}}">综合 {{item.tax.comprehensive_rate}}</view>
+      </view>
+    </view>
+  </block>
+
+  <!-- 无结果 -->
+  <view class="empty" wx:if="{{!loading && recommendations.length === 0}}">
+    <view class="empty-icon">🔍</view>
+    <view class="empty-text">未找到相关商品归类</view>
+    <view class="empty-tip">建议尝试更通用的关键词，或咨询专业报关员</view>
+    <button class="btn-primary" bindtap="goBack">返回重新搜索</button>
+  </view>
+
+  <!-- 免责声明 -->
+  <view class="disclaimer">
+    <text>{{disclaimer}}</text>
+  </view>
+</view>

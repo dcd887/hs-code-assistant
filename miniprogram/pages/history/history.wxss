@@ -1,0 +1,66 @@
+/* pages/history/history.wxss */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24rpx;
+}
+.title {
+  font-size: 36rpx;
+  font-weight: 700;
+}
+.clear-btn {
+  font-size: 26rpx;
+  color: #EA6668;
+}
+.history-list {
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  overflow: hidden;
+}
+.history-item {
+  padding: 28rpx;
+  border-bottom: 1rpx solid #F0EFEA;
+}
+.history-item:last-child {
+  border-bottom: none;
+}
+.history-desc {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1A1B1C;
+  margin-bottom: 12rpx;
+}
+.history-result {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 8rpx;
+}
+.hs-code {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #5B6BB5;
+  font-family: monospace;
+}
+.hs-name {
+  font-size: 26rpx;
+  color: #6B7280;
+}
+.history-time {
+  font-size: 22rpx;
+  color: #9CA3AF;
+}
+.empty {
+  text-align: center;
+  padding: 120rpx 0;
+}
+.empty-icon {
+  font-size: 80rpx;
+  margin-bottom: 20rpx;
+}
+.empty-text {
+  font-size: 28rpx;
+  color: #6B7280;
+  margin-bottom: 32rpx;
+}

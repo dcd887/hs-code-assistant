@@ -1,0 +1,50 @@
+<!--pages/index/index.wxml-->
+<view class="container">
+  <!-- 标题区 -->
+  <view class="header">
+    <view class="title">税则通</view>
+    <view class="subtitle">商品编码 · 税率 · 监管条件查询</view>
+  </view>
+
+  <!-- 搜索区 -->
+  <view class="search-card">
+    <view class="search-label">输入商品描述</view>
+    <textarea
+      class="search-input"
+      placeholder="例如：不锈钢厨房用勺子、纯棉男士T恤、便携式笔记本电脑"
+      value="{{description}}"
+      bindinput="onInput"
+      maxlength="200"
+      auto-height
+    />
+    <button class="btn-primary search-btn" bindtap="onSearch" loading="{{loading}}">
+      {{loading ? '归类中...' : '开始归类'}}
+    </button>
+  </view>
+
+  <!-- 热门搜索 -->
+  <view class="hot-section">
+    <view class="section-title">热门搜索</view>
+    <view class="hot-tags">
+      <view class="hot-tag" wx:for="{{hotKeywords}}" wx:key="*this" bindtap="onHotTap" data-keyword="{{item}}">
+        {{item}}
+      </view>
+    </view>
+  </view>
+
+  <!-- 最近搜索 -->
+  <view class="history-section" wx:if="{{recentHistory.length > 0}}">
+    <view class="section-title">最近搜索</view>
+    <view class="history-list">
+      <view class="history-item" wx:for="{{recentHistory}}" wx:key="time" bindtap="onHistoryTap" data-item="{{item}}">
+        <view class="history-desc">{{item.description}}</view>
+        <view class="history-time">{{item.time}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部说明 -->
+  <view class="footer">
+    <text>本工具仅供参考，实际归类以海关核定为准</text>
+  </view>
+</view>

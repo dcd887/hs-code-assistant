@@ -1,0 +1,62 @@
+/* app.wxss 全局样式 */
+page {
+  background-color: #F4F3EE;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', sans-serif;
+  color: #1A1B1C;
+  font-size: 28rpx;
+  line-height: 1.5;
+}
+
+.container {
+  padding: 32rpx;
+  box-sizing: border-box;
+}
+
+.card {
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04);
+}
+
+.btn-primary {
+  background: #9EACEA;
+  color: #FFFFFF;
+  border-radius: 12rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  border: none;
+}
+
+.btn-primary::after {
+  border: none;
+}
+
+.text-secondary {
+  color: #6B7280;
+  font-size: 24rpx;
+}
+
+.tag {
+  display: inline-block;
+  padding: 4rpx 16rpx;
+  border-radius: 8rpx;
+  font-size: 22rpx;
+  margin-right: 12rpx;
+}
+
+.tag-tariff {
+  background: rgba(158,172,234,0.15);
+  color: #5B6BB5;
+}
+
+.tag-vat {
+  background: rgba(148,212,208,0.15);
+  color: #3D8B86;
+}
+
+.tag-danger {
+  background: rgba(234,102,104,0.15);
+  color: #C44;
+}
