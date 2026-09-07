@@ -295,6 +295,14 @@ def classify(request: ClassifyRequest):
             "status": "fallback",
             "recommendations": results,
             "disclaimer": "智能归类暂不可用，当前为税则数据库关键词匹配结果，仅供参考"
+        } if results else {
+            "status": "service_unavailable",
+            "recommendations": [],
+            "disclaimer": "智能归类服务暂时不可用，且未在税则数据库中找到匹配结果。您可以尝试更通用的关键词，或通过下方方式反馈给开发者。",
+            "feedback": {
+                "email": "hq15012670635@163.com",
+                "message": "请将您查询的商品名称发送到上述邮箱，我们会尽快补充数据并修复服务。"
+            }
         }
 
 

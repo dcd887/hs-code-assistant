@@ -33,11 +33,27 @@
   </block>
 
   <!-- 无结果 -->
-  <view class="empty" wx:if="{{!loading && recommendations.length === 0}}">
+  <view class="empty" wx:if="{{!loading && recommendations.length === 0 && !serviceUnavailable}}">
     <view class="empty-icon">🔍</view>
     <view class="empty-text">未找到相关商品归类</view>
     <view class="empty-tip">建议尝试更通用的关键词，或咨询专业报关员</view>
     <button class="btn-primary" bindtap="goBack">返回重新搜索</button>
+  </view>
+
+  <!-- 服务异常 -->
+  <view class="empty" wx:if="{{!loading && serviceUnavailable}}">
+    <view class="empty-icon">⚠️</view>
+    <view class="empty-text">查询服务暂时不可用</view>
+    <view class="empty-tip">{{disclaimer}}</view>
+    <view class="feedback-card" wx:if="{{feedbackEmail}}">
+      <view class="feedback-label">反馈给开发者</view>
+      <view class="feedback-email" bindtap="copyFeedbackEmail">{{feedbackEmail}}</view>
+      <view class="feedback-hint">点击复制邮箱，将您查询的商品名称发送给我们</view>
+    </view>
+    <view class="btn-group">
+      <button class="btn-secondary" bindtap="retry">重新查询</button>
+      <button class="btn-primary" bindtap="goBack">返回搜索</button>
+    </view>
   </view>
 
   <!-- 免责声明 -->
