@@ -27,6 +27,19 @@ LLM_CONFIG = {
     "model": os.getenv("LLM_MODEL", "qwen-plus"),
 }
 
+# 免费模型列表（按优先级排序，额度用完自动切换下一个）
+# 来源：阿里云百炼免费额度模型，各100万token免费
+FREE_MODELS = [
+    "qwen-plus",          # 当前主力，支持tool calling
+    "qwen3.8-flash",      # 免费100万token
+    "qwen3.7-flash",      # 免费100万token
+    "deepseek-v4-flash",  # 免费100万token
+    "glm-5.2",            # 免费100万token
+    "kimi-k3",            # 免费100万token
+    "qwen3.8-27b",        # 免费
+]
+_model_index = 0  # 当前使用的模型索引，失败后自动+1
+
 # CORS（微信小程序域名白名单，生产环境收窄）
 app.add_middleware(
     CORSMiddleware,
@@ -191,58 +204,77 @@ SYSTEM_PROMPT = """你是一个专业的海关商品归类助手。用户会输�
 
 注意：搜索不到就如实说，不要编造编码。"""
 
-def run_classifier(description: str) -> dict:
-    """用 LLM + 工具调用实现商品归类（手动实现tool calling循环）"""
-    llm = ChatOpenAI(
-        model=LLM_CONFIG["model"],
+def _create_llm(model_name: str):
+    """创建指定模型的LLM实例"""
+    return ChatOpenAI(
+        model=model_name,
         temperature=0.1,
         api_key=LLM_CONFIG["api_key"],
         base_url=LLM_CONFIG["base_url"],
     )
-    
+
+
+def run_classifier(description: str) -> dict:
+    """用 LLM + 工具调用实现商品归类，模型失败自动切换下一个免费模型"""
+    global _model_index
     tools = [search_hs_code, get_hs_detail, calculate_tax]
-    llm_with_tools = llm.bind_tools(tools)
-    
     messages = [
         ("system", SYSTEM_PROMPT),
         ("human", f"请查询以下商品的HS Code并输出JSON结果：{description}"),
     ]
-    
-    # 最多3轮工具调用
-    for _ in range(3):
-        response = llm_with_tools.invoke(messages)
-        messages.append(response)
-        
-        if not response.tool_calls:
-            # 没有工具调用，返回最终结果
+
+    last_error = None
+    # 遍历模型列表，每个模型最多尝试一次
+    for attempt in range(len(FREE_MODELS)):
+        model_name = FREE_MODELS[(_model_index + attempt) % len(FREE_MODELS)]
+        try:
+            llm = _create_llm(model_name)
+            llm_with_tools = llm.bind_tools(tools)
+
+            # 最多3轮工具调用
+            for _ in range(3):
+                response = llm_with_tools.invoke(messages)
+                messages.append(response)
+
+                if not response.tool_calls:
+                    try:
+                        result = json.loads(response.content)
+                        # 成功，记录当前模型
+                        _model_index = (_model_index + attempt) % len(FREE_MODELS)
+                        return result
+                    except json.JSONDecodeError:
+                        return {"status": "parse_error", "raw_output": response.content}
+
+                for tool_call in response.tool_calls:
+                    tool_name = tool_call["name"]
+                    tool_args = tool_call["args"]
+                    tool_id = tool_call["id"]
+                    tool_map = {t.name: t for t in tools}
+                    if tool_name in tool_map:
+                        try:
+                            tool_result = tool_map[tool_name].invoke(tool_args)
+                        except Exception as e:
+                            tool_result = json.dumps({"error": str(e)}, ensure_ascii=False)
+                    else:
+                        tool_result = json.dumps({"error": f"Unknown tool: {tool_name}"}, ensure_ascii=False)
+                    messages.append(ToolMessage(content=tool_result, tool_call_id=tool_id))
+
+            # 超过3轮，强制返回
+            final_response = llm.invoke(messages)
             try:
-                return json.loads(response.content)
+                result = json.loads(final_response.content)
+                _model_index = (_model_index + attempt) % len(FREE_MODELS)
+                return result
             except json.JSONDecodeError:
-                return {"status": "parse_error", "raw_output": response.content}
-        
-        # 执行工具调用
-        for tool_call in response.tool_calls:
-            tool_name = tool_call["name"]
-            tool_args = tool_call["args"]
-            tool_id = tool_call["id"]
-            
-            tool_map = {t.name: t for t in tools}
-            if tool_name in tool_map:
-                try:
-                    tool_result = tool_map[tool_name].invoke(tool_args)
-                except Exception as e:
-                    tool_result = json.dumps({"error": str(e)}, ensure_ascii=False)
-            else:
-                tool_result = json.dumps({"error": f"Unknown tool: {tool_name}"}, ensure_ascii=False)
-            
-            messages.append(ToolMessage(content=tool_result, tool_call_id=tool_id))
-    
-    # 超过3轮，强制返回
-    final_response = llm.invoke(messages)
-    try:
-        return json.loads(final_response.content)
-    except json.JSONDecodeError:
-        return {"status": "max_iterations", "raw_output": final_response.content}
+                return {"status": "max_iterations", "raw_output": final_response.content}
+
+        except Exception as e:
+            last_error = e
+            # 模型调用失败（额度用完/429/网络错误），切换下一个模型
+            continue
+
+    # 所有模型都失败
+    raise RuntimeError(f"所有模型均调用失败，最后错误: {last_error}")
 
 
 # ========== API 接口 ==========
