@@ -1,139 +1,78 @@
-# 税则通 - 商品编码与税率查询工具
+# 税则通 · HS Code Assistant
 
-微信小程序，输入商品名称即可查询 HS 编码（海关商品编号）、进口关税、增值税率及监管条件。数据基于财政部《中华人民共和国进出口税则（2026）》，覆盖全部 8,972 个税则号列。
+[![Live](https://img.shields.io/badge/status-%E5%B7%B2%E5%A4%87%E6%A1%88%E4%B8%8A%E7%BA%BF-2ea44f)](#)
+[![Codes](https://img.shields.io/badge/HS%20codes-8%2C972-4da3ff)](#)
+[![MCP](https://img.shields.io/badge/MCP-ready-8b5cf6)](mcp/)
 
-## 功能
+**微信小程序 + FastAPI**：输入商品口语名，返回归类编码、税率与申报要素。  
+*A WeChat Mini Program + FastAPI backend that maps plain-language product descriptions to China customs HS codes, duty rates and declaration elements.*
 
-- 商品名称模糊搜索，返回最匹配的 HS 编码
-- 显示最惠国税率、增值税率、综合税率
-- 归类依据说明
-- 历史查询记录
-- 一键复制 HS 编码
+---
 
-## 技术架构
+## 为什么做这个
 
+报关归类靠人查税则、靠经验判断。查错一个编码，整票可能退单。  
+这个工具把「查编码 → 查税率 → 看申报要素」压缩成一次输入，3 秒内出结果。
+
+## 架构
+
+```mermaid
+flowchart LR
+    A[微信小程序<br/>商品名输入] -->|HTTPS| B[FastAPI<br/>/classify]
+    B --> C{本地税则库<br/>8,972 条}
+    B --> D[LangChain Tool Calling]
+    D --> D1[HS 全文搜索]
+    D --> D2[商品详情查询]
+    D --> D3[税费计算]
+    C --> B
+    D1 & D2 & D3 --> B
+    B --> E[结果页<br/>编码 / 税率 / 申报要素]
 ```
-微信小程序（前端，WXML/WXSS/JS）
-    ↓ HTTP API
-FastAPI 后端（Python）
-    ↓ Tool Calling
-LangChain + 大模型 API（阿里云百炼）
-    ├── 工具1: HS Code 全文搜索（8,972条）
-    ├── 工具2: 商品详情查询
-    └── 工具3: 税费计算
-    ↓
-本地税则数据库（JSON）
-```
 
-## 目录结构
+## 性能（实测）
 
-```
-hs-code-ai-assistant/
-├── data/
-│   ├── hs_codes_full.json           # 完整税则数据库（8,972条）
-│   ├── hs_codes.json                # 精选常见商品（60条）
-│   └── 海关商品归类知识库_2026.md    # 知识库文档
-├── backend/
-│   ├── main.py                      # FastAPI 后端
-│   ├── requirements.txt
-│   └── .env                         # 环境变量（API Key，不入库）
-├── mcp/
-│   └── hs_code_server.py            # MCP 工具服务器（可选）
-├── miniprogram/                     # 微信小程序前端
-│   ├── pages/
-│   │   ├── index/                   # 首页（搜索）
-│   │   ├── result/                  # 结果页
-│   │   └── history/                 # 历史记录
-│   ├── app.js / app.json / app.wxss
-│   └── project.config.json
-├── Dockerfile                       # 微信云托管部署
-├── DEPLOY.md                        # 部署指南
-└── README.md
-```
+| 指标 | 值 | 说明 |
+|---|---|---|
+| 冷启动 | **2,450 ms** | 容器首次请求 |
+| 其中业务代码 | **34 ms** | 其余是 `fastapi` import 开销（瓶颈已定位） |
+| 税则条目 | **8,972** | `data/hs_codes_full.json` |
+| 线上用户 | 18 | 备案上线后自然增长 |
+
+> 冷启动分析见 `_冷启动分析_20261021.md`：**98.6% 的时间花在框架 import，不在业务逻辑**。
 
 ## 快速开始
 
-### 1. 安装后端依赖
-
 ```bash
-cd backend
-python -m venv .venv
-.venv\Scripts\activate
 pip install -r requirements.txt
+uvicorn backend.main:app --reload --port 8000
+curl "http://127.0.0.1:8000/classify?q=不锈钢保温杯"
 ```
 
-### 2. 配置环境变量
+小程序端：用微信开发者工具打开 `miniprogram/`，把 `project.config.json` 的 `appid` 换成你自己的。
 
-在 `backend/.env` 中配置：
+## MCP 能力
+
+`mcp/` 目录把税则查询暴露成 MCP 工具，可被任意 Agent 调用：
+
+- `search_hs_code(query)` — 全文搜索 8,972 条税则
+- `get_hs_detail(code)` — 商品详情
+- `calc_tax(code, price, origin)` — 税费计算
+
+## 目录
 
 ```
-LLM_API_KEY=your-api-key
-LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-LLM_MODEL=qwen-plus
+hs-code-assistant/
+├── backend/          FastAPI 服务
+├── miniprogram/      微信小程序
+├── mcp/              MCP 工具封装
+├── data/             税则库（8,972 条）
+└── Dockerfile        部署用
 ```
-
-### 3. 启动后端
-
-```bash
-cd backend
-uvicorn main:app --host 0.0.0.0 --port 8000
-```
-
-### 4. 微信小程序
-
-1. 用微信开发者工具打开 `miniprogram/` 目录
-2. AppID: `wxb044bbb96b2b11a7`
-3. 开发阶段在 `app.js` 中配置 `apiBase` 为后端地址
-4. 详情 → 本地设置 → 勾选「不校验合法域名」
-
-## API 接口
-
-### POST /api/classify
-
-商品归类查询。
-
-**请求：**
-```json
-{ "description": "智能手机" }
-```
-
-**响应：**
-```json
-{
-  "recommendations": [
-    {
-      "hs_code": "8517.1300",
-      "name": "智能手机",
-      "confidence": 0.95,
-      "reason": "智能手机属于蜂窝网络用电话机，归入8517.13",
-      "tax": {
-        "import_tariff": "0%",
-        "vat_rate": "13%",
-        "comprehensive_rate": "13.0%"
-      }
-    }
-  ],
-  "disclaimer": "本结果仅供参考，实际归类以海关核定为准"
-}
-```
-
-### GET /api/hs/{hs_code}
-查询指定 HS 编码详情。
-
-### GET /api/categories
-获取商品类别列表。
-
-## 数据来源
-
-- 财政部《中华人民共和国进出口税则（2026）》（1492页，8,972个税则号列）
-- 海关总署公告2025年第260号（2026年关税调整方案）
-- 海关总署公告2026年第15号（9%增值税税率商品表）
-- 海关总署公告2026年第126号（电池产品编码）
 
 ## 部署
 
-详见 [DEPLOY.md](./DEPLOY.md)（微信云托管 + Docker）。
+见 `DEPLOY.md`。要点：容器内 `data/` 必须显式 COPY，否则 `dirname(__file__)/data` 找不到。
 
-## 免责声明
+## License
 
-本工具为个人开发的查询辅助工具，非海关官方产品。查询结果仅供参考，不构成正式报关依据，实际归类以海关核定为准。
+MIT
