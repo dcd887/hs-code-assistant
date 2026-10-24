@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 # 版本号单一来源：FastAPI 元数据与 GET / 同读此常量，避免多处写死后互相矛盾
-SERVICE_VERSION = "1.1.0"
+SERVICE_VERSION = "1.1.1"
 
 # 配置
 app = FastAPI(title="税则通API", version=SERVICE_VERSION)
